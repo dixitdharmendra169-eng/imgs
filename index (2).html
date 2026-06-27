@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhotoDoc Tools</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans, system-ui, sans-serif); background: var(--surface-0, #f5f5f3); color: var(--text-primary, #1a1a18); min-height: 100vh; }
+
+  .header { background: var(--surface-2, #fff); border-bottom: 0.5px solid var(--border, #e0ddd6); padding: 1rem 1.5rem; display: flex; align-items: center; gap: 12px; }
+  .logo { width: 36px; height: 36px; background: #1a56db; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 16px; }
+  .logo-text { font-size: 18px; font-weight: 500; }
+  .logo-sub { font-size: 13px; color: var(--text-secondary, #888); margin-left: 4px; }
+
+  .nav { background: var(--surface-2, #fff); border-bottom: 0.5px solid var(--border, #e0ddd6); padding: 0 1.5rem; display: flex; gap: 0; overflow-x: auto; }
+  .nav-btn { padding: 0.75rem 1.25rem; font-size: 14px; font-weight: 400; color: var(--text-secondary, #888); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .nav-btn.active { color: #1a56db; border-bottom-color: #1a56db; font-weight: 500; }
+  .nav-btn:hover:not(.active) { color: var(--text-primary, #1a1a18); }
+
+  .main { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+
+  .tool-panel { display: none; }
+  .tool-panel.active { display: block; }
+
+  .upload-zone { border: 1.5px dashed var(--border-strong, #c5c2bc); border-radius: 12px; padding: 2.5rem; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface-2, #fff); }
+  .upload-zone:hover, .upload-zone.drag { border-color: #1a56db; background: #eef3ff; }
+  .upload-icon { font-size: 36px; color: #1a56db; margin-bottom: 0.75rem; }
+  .upload-title { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+  .upload-sub { font-size: 13px; color: var(--text-secondary, #888); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.25rem; }
+  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+
+  .card { background: var(--surface-2, #fff); border: 0.5px solid var(--border, #e0ddd6); border-radius: 12px; padding: 1.25rem; }
+  .card-title { font-size: 14px; font-weight: 500; margin-bottom: 1rem; color: var(--text-secondary, #666); text-transform: uppercase; letter-spacing: 0.04em; font-size: 12px; }
+
+  .preview-wrap { position: relative; display: flex; justify-content: center; align-items: flex-start; min-height: 200px; background: #f0f0ee; border-radius: 8px; overflow: hidden; }
+  .preview-wrap canvas { max-width: 100%; border-radius: 6px; }
+
+  label.field-label { display: block; font-size: 13px; color: var(--text-secondary, #888); margin-bottom: 6px; margin-top: 14px; }
+  label.field-label:first-child { margin-top: 0; }
+  input[type="text"], input[type="date"], select { width: 100%; padding: 8px 10px; border: 0.5px solid var(--border-strong, #c5c2bc); border-radius: 6px; font-size: 14px; background: var(--surface-2, #fff); color: var(--text-primary, #1a1a18); font-family: inherit; }
+  input[type="range"] { width: 100%; margin: 4px 0; }
+  .range-row { display: flex; align-items: center; gap: 10px; }
+  .range-val { font-size: 13px; font-weight: 500; min-width: 32px; text-align: right; color: var(--text-secondary, #666); }
+
+  .color-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .color-swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.1s; }
+  .color-swatch.selected { border-color: #1a56db; transform: scale(1.15); }
+
+  .btn { padding: 9px 18px; border-radius: 7px; font-size: 14px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border-strong, #c5c2bc); background: var(--surface-2, #fff); color: var(--text-primary, #1a1a18); transition: all 0.15s; font-family: inherit; }
+  .btn:hover { background: var(--surface-1, #f5f5f3); }
+  .btn.primary { background: #1a56db; color: #fff; border-color: #1a56db; }
+  .btn.primary:hover { background: #1547c0; }
+  .btn-row { display: flex; gap: 10px; margin-top: 1.25rem; flex-wrap: wrap; }
+
+  .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .size-opt { padding: 8px 10px; border: 0.5px solid var(--border-strong, #c5c2bc); border-radius: 7px; cursor: pointer; text-align: center; font-size: 13px; background: var(--surface-2, #fff); transition: all 0.15s; }
+  .size-opt:hover { border-color: #1a56db; color: #1a56db; }
+  .size-opt.active { border-color: #1a56db; background: #eef3ff; color: #1a56db; font-weight: 500; }
+  .size-name { font-weight: 500; font-size: 12px; }
+  .size-dim { font-size: 11px; color: var(--text-secondary, #888); margin-top: 2px; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; background: #eef3ff; color: #1a56db; margin-left: 6px; }
+
+  .tip { font-size: 12px; color: var(--text-secondary, #888); margin-top: 8px; line-height: 1.5; }
+
+  .section-head { font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+  .section-sub { font-size: 14px; color: var(--text-secondary, #888); margin-bottom: 1.5rem; }
+
+  canvas { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">P</div>
+  <div>
+    <span class="logo-text">PhotoDoc Tools</span>
+    <span class="logo-sub">for government forms</span>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="switchTab('dob')">Add DOB / Text</button>
+  <button class="nav-btn" onclick="switchTab('resize')">Resize Photo</button>
+  <button class="nav-btn" onclick="switchTab('enhance')">Enhance</button>
+  <button class="nav-btn" onclick="switchTab('bg')">Background</button>
+</div>
+
+<div class="main">
+
+  <!-- TAB: DOB -->
+  <div class="tool-panel active" id="tab-dob">
+    <div class="section-head">Add date of birth</div>
+    <div class="section-sub">Upload your photo and add DOB or any text below it — used in Aadhaar, passport, and visa applications.</div>
+
+    <div class="upload-zone" id="dob-drop" onclick="document.getElementById('dob-file').click()">
+      <div class="upload-icon">📷</div>
+      <div class="upload-title">Click or drop your photo here</div>
+      <div class="upload-sub">JPG, PNG up to 10MB</div>
+      <input type="file" id="dob-file" accept="image/*" style="display:none" onchange="loadDobImage(event)">
+    </div>
+
+    <div class="two-col" id="dob-editor" style="display:none">
+      <div>
+        <div class="card">
+          <div class="card-title">Text settings</div>
+
+          <label class="field-label">Date of birth</label>
+          <input type="date" id="dob-date" oninput="renderDob()">
+
+          <label class="field-label">Custom text (optional)</label>
+          <input type="text" id="dob-custom" placeholder="e.g. DOB: 15/08/1995" oninput="renderDob()">
+
+          <label class="field-label">Font size</label>
+          <div class="range-row">
+            <input type="range" id="dob-size" min="10" max="60" value="22" oninput="renderDob(); document.getElementById('dob-size-val').textContent=this.value+'px'">
+            <span class="range-val" id="dob-size-val">22px</span>
+          </div>
+
+          <label class="field-label">Position</label>
+          <select id="dob-pos" onchange="renderDob()">
+            <option value="bottom">Below photo</option>
+            <option value="top">Above photo</option>
+            <option value="bottom-inside">Inside — bottom</option>
+            <option value="top-inside">Inside — top</option>
+          </select>
+
+          <label class="field-label">Text color</label>
+          <div class="color-row" id="dob-colors">
+            <div class="color-swatch selected" style="background:#111111" data-color="#111111" onclick="selectColor(this,'dob')"></div>
+            <div class="color-swatch" style="background:#ffffff;border:1px solid #ccc" data-color="#ffffff" onclick="selectColor(this,'dob')"></div>
+            <div class="color-swatch" style="background:#1a56db" data-color="#1a56db" onclick="selectColor(this,'dob')"></div>
+            <div class="color-swatch" style="background:#cc0000" data-color="#cc0000" onclick="selectColor(this,'dob')"></div>
+            <div class="color-swatch" style="background:#006600" data-color="#006600" onclick="selectColor(this,'dob')"></div>
+            <input type="color" id="dob-color-pick" value="#111111" style="width:28px;height:28px;border-radius:50%;border:none;cursor:pointer;padding:0" oninput="renderDob()" title="Custom color">
+          </div>
+
+          <label class="field-label">Background strip</label>
+          <select id="dob-bg" onchange="renderDob()">
+            <option value="none">None</option>
+            <option value="white">White</option>
+            <option value="light">Light gray</option>
+          </select>
+
+          <div class="btn-row">
+            <button class="btn primary" onclick="downloadCanvas('dob-canvas','photo-with-dob.jpg')">Download photo</button>
+            <button class="btn" onclick="resetDob()">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-title">Preview</div>
+          <div class="preview-wrap">
+            <canvas id="dob-canvas"></canvas>
+          </div>
+          <p class="tip">Preview updates live. Download saves a full-quality JPG.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: RESIZE -->
+  <div class="tool-panel" id="tab-resize">
+    <div class="section-head">Resize photo</div>
+    <div class="section-sub">Crop and resize to standard government photo sizes.</div>
+
+    <div class="upload-zone" onclick="document.getElementById('resize-file').click()">
+      <div class="upload-icon">📐</div>
+      <div class="upload-title">Click or drop your photo here</div>
+      <div class="upload-sub">JPG, PNG up to 10MB</div>
+      <input type="file" id="resize-file" accept="image/*" style="display:none" onchange="loadResizeImage(event)">
+    </div>
+
+    <div id="resize-editor" style="display:none; margin-top:1.25rem;">
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-title">Select size</div>
+            <div class="size-grid" id="size-grid">
+              <div class="size-opt active" data-w="35" data-h="45" onclick="selectSize(this)"><div class="size-name">Passport <span class="badge">India</span></div><div class="size-dim">35×45 mm</div></div>
+              <div class="size-opt" data-w="51" data-h="51" onclick="selectSize(this)"><div class="size-name">US Visa</div><div class="size-dim">51×51 mm (2"×2")</div></div>
+              <div class="size-opt" data-w="35" data-h="35" onclick="selectSize(this)"><div class="size-name">PAN Card</div><div class="size-dim">35×35 mm</div></div>
+              <div class="size-opt" data-w="30" data-h="40" onclick="selectSize(this)"><div class="size-name">Aadhaar</div><div class="size-dim">30×40 mm</div></div>
+              <div class="size-opt" data-w="25" data-h="30" onclick="selectSize(this)"><div class="size-name">Driving Licence</div><div class="size-dim">25×30 mm</div></div>
+              <div class="size-opt" data-w="40" data-h="50" onclick="selectSize(this)"><div class="size-name">Voter ID</div><div class="size-dim">40×50 mm</div></div>
+            </div>
+
+            <label class="field-label" style="margin-top:14px">Custom size (pixels)</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="number" id="custom-w" placeholder="Width px" style="flex:1">
+              <span style="color:var(--text-secondary)">×</span>
+              <input type="number" id="custom-h" placeholder="Height px" style="flex:1">
+            </div>
+
+            <div class="btn-row">
+              <button class="btn primary" onclick="doResize()">Resize and download</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-title">Original photo</div>
+            <div class="preview-wrap">
+              <canvas id="resize-canvas" style="max-width:100%"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: ENHANCE -->
+  <div class="tool-panel" id="tab-enhance">
+    <div class="section-head">Enhance photo</div>
+    <div class="section-sub">Adjust brightness, contrast, and sharpness for clearer government ID photos.</div>
+
+    <div class="upload-zone" onclick="document.getElementById('enhance-file').click()">
+      <div class="upload-icon">✨</div>
+      <div class="upload-title">Click or drop your photo here</div>
+      <div class="upload-sub">JPG, PNG up to 10MB</div>
+      <input type="file" id="enhance-file" accept="image/*" style="display:none" onchange="loadEnhanceImage(event)">
+    </div>
+
+    <div class="two-col" id="enhance-editor" style="display:none; margin-top:1.25rem">
+      <div>
+        <div class="card">
+          <div class="card-title">Adjustments</div>
+
+          <label class="field-label">Brightness</label>
+          <div class="range-row">
+            <input type="range" id="e-bright" min="-100" max="100" value="0" oninput="renderEnhance(); document.getElementById('e-bright-v').textContent=this.value">
+            <span class="range-val" id="e-bright-v">0</span>
+          </div>
+
+          <label class="field-label">Contrast</label>
+          <div class="range-row">
+            <input type="range" id="e-contrast" min="-100" max="100" value="0" oninput="renderEnhance(); document.getElementById('e-contrast-v').textContent=this.value">
+            <span class="range-val" id="e-contrast-v">0</span>
+          </div>
+
+          <label class="field-label">Saturation</label>
+          <div class="range-row">
+            <input type="range" id="e-sat" min="-100" max="100" value="0" oninput="renderEnhance(); document.getElementById('e-sat-v').textContent=this.value">
+            <span class="range-val" id="e-sat-v">0</span>
+          </div>
+
+          <label class="field-label">Sharpen</label>
+          <div class="range-row">
+            <input type="range" id="e-sharp" min="0" max="5" step="0.5" value="0" oninput="renderEnhance(); document.getElementById('e-sharp-v').textContent=this.value">
+            <span class="range-val" id="e-sharp-v">0</span>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn primary" onclick="downloadCanvas('enhance-canvas','enhanced-photo.jpg')">Download</button>
+            <button class="btn" onclick="resetEnhance()">Reset</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">Preview</div>
+          <div class="preview-wrap">
+            <canvas id="enhance-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: BACKGROUND -->
+  <div class="tool-panel" id="tab-bg">
+    <div class="section-head">Change background</div>
+    <div class="section-sub">Add a solid background color — white for most Indian government forms.</div>
+
+    <div class="upload-zone" onclick="document.getElementById('bg-file').click()">
+      <div class="upload-icon">🎨</div>
+      <div class="upload-title">Click or drop your photo here</div>
+      <div class="upload-sub">JPG, PNG, transparent PNG supported</div>
+      <input type="file" id="bg-file" accept="image/*" style="display:none" onchange="loadBgImage(event)">
+    </div>
+
+    <div class="two-col" id="bg-editor" style="display:none; margin-top:1.25rem">
+      <div>
+        <div class="card">
+          <div class="card-title">Background color</div>
+
+          <div class="color-row" id="bg-colors" style="margin-bottom:12px">
+            <div class="color-swatch selected" style="background:#ffffff;border:1px solid #ccc" data-color="#ffffff" onclick="selectBgColor(this)"></div>
+            <div class="color-swatch" style="background:#cce5ff" data-color="#cce5ff" onclick="selectBgColor(this)"></div>
+            <div class="color-swatch" style="background:#d4edda" data-color="#d4edda" onclick="selectBgColor(this)"></div>
+            <div class="color-swatch" style="background:#f8d7da" data-color="#f8d7da" onclick="selectBgColor(this)"></div>
+            <div class="color-swatch" style="background:#f5e6ca" data-color="#f5e6ca" onclick="selectBgColor(this)"></div>
+            <div class="color-swatch" style="background:#e8e8e8" data-color="#e8e8e8" onclick="selectBgColor(this)"></div>
+            <input type="color" id="bg-color-pick" value="#ffffff" style="width:28px;height:28px;border-radius:50%;border:none;cursor:pointer;padding:0" oninput="renderBg()" title="Custom color">
+          </div>
+
+          <p class="tip">For transparent PNGs: removes existing background and fills with your color.<br>For regular photos: fills transparent/white areas.</p>
+
+          <div class="btn-row">
+            <button class="btn primary" onclick="downloadCanvas('bg-canvas','photo-new-bg.jpg')">Download</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">Preview</div>
+          <div class="preview-wrap">
+            <canvas id="bg-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let dobImg = null, resizeImg = null, enhanceImg = null, bgImg = null;
+let selectedDobColor = '#111111';
+let selectedBgColor = '#ffffff';
+
+function switchTab(id) {
+  document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function selectColor(el, ctx) {
+  document.querySelectorAll('#dob-colors .color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedDobColor = el.dataset.color;
+  renderDob();
+}
+
+function selectBgColor(el) {
+  document.querySelectorAll('#bg-colors .color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedBgColor = el.dataset.color;
+  renderBg();
+}
+
+function selectSize(el) {
+  document.querySelectorAll('.size-opt').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function loadDobImage(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    dobImg = new Image();
+    dobImg.onload = function() {
+      document.getElementById('dob-editor').style.display = 'grid';
+      renderDob();
+    };
+    dobImg.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderDob() {
+  if (!dobImg) return;
+  const canvas = document.getElementById('dob-canvas');
+  const ctx = canvas.getContext('2d');
+  const pos = document.getElementById('dob-pos').value;
+  const fontSize = parseInt(document.getElementById('dob-size').value);
+  const bgOpt = document.getElementById('dob-bg').value;
+  const color = document.getElementById('dob-color-pick').value !== '#111111' && !selectedDobColor.startsWith('#1') ? document.getElementById('dob-color-pick').value : selectedDobColor;
+
+  let text = document.getElementById('dob-custom').value;
+  if (!text) {
+    const d = document.getElementById('dob-date').value;
+    if (d) {
+      const dt = new Date(d + 'T00:00:00');
+      text = 'DOB: ' + dt.getDate().toString().padStart(2,'0') + '/' + (dt.getMonth()+1).toString().padStart(2,'0') + '/' + dt.getFullYear();
+    }
+  }
+
+  const pad = text && (pos === 'bottom' || pos === 'top') ? fontSize + 16 : 0;
+  canvas.width = dobImg.width;
+  canvas.height = dobImg.height + pad;
+
+  if (pos === 'bottom') {
+    ctx.drawImage(dobImg, 0, 0);
+  } else if (pos === 'top') {
+    ctx.drawImage(dobImg, 0, pad);
+  } else {
+    ctx.drawImage(dobImg, 0, 0);
+  }
+
+  if (text) {
+    ctx.font = `${fontSize}px sans-serif`;
+    const tw = ctx.measureText(text).width;
+    let tx = canvas.width / 2;
+    let ty;
+    if (pos === 'bottom') ty = dobImg.height + fontSize + 8;
+    else if (pos === 'top') ty = fontSize + 8;
+    else if (pos === 'bottom-inside') ty = dobImg.height - 12;
+    else ty = fontSize + 8;
+
+    if (bgOpt !== 'none') {
+      ctx.fillStyle = bgOpt === 'white' ? '#ffffff' : '#f2f2f0';
+      if (pos === 'bottom') { ctx.fillRect(0, dobImg.height, canvas.width, pad || fontSize + 16); }
+      else if (pos === 'top') { ctx.fillRect(0, 0, canvas.width, pad || fontSize + 16); }
+      else { ctx.fillRect(canvas.width / 2 - tw / 2 - 8, ty - fontSize - 4, tw + 16, fontSize + 12); }
+    }
+
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.fillText(text, tx, ty);
+  }
+}
+
+function resetDob() {
+  document.getElementById('dob-date').value = '';
+  document.getElementById('dob-custom').value = '';
+  renderDob();
+}
+
+function loadResizeImage(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    resizeImg = new Image();
+    resizeImg.onload = function() {
+      const canvas = document.getElementById('resize-canvas');
+      canvas.width = Math.min(resizeImg.width, 400);
+      canvas.height = resizeImg.height * (canvas.width / resizeImg.width);
+      canvas.getContext('2d').drawImage(resizeImg, 0, 0, canvas.width, canvas.height);
+      document.getElementById('resize-editor').style.display = 'block';
+    };
+    resizeImg.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function doResize() {
+  if (!resizeImg) return;
+  const active = document.querySelector('.size-opt.active');
+  let pw = parseInt(document.getElementById('custom-w').value);
+  let ph = parseInt(document.getElementById('custom-h').value);
+  if (!pw || !ph) {
+    if (!active) return;
+    const mmW = parseFloat(active.dataset.w);
+    const mmH = parseFloat(active.dataset.h);
+    const dpi = 300;
+    pw = Math.round(mmW / 25.4 * dpi);
+    ph = Math.round(mmH / 25.4 * dpi);
+  }
+  const out = document.createElement('canvas');
+  out.width = pw; out.height = ph;
+  const ratio = Math.max(pw / resizeImg.width, ph / resizeImg.height);
+  const sw = pw / ratio, sh = ph / ratio;
+  const sx = (resizeImg.width - sw) / 2, sy = (resizeImg.height - sh) / 2;
+  out.getContext('2d').drawImage(resizeImg, sx, sy, sw, sh, 0, 0, pw, ph);
+  downloadCanvas(null, 'resized-photo.jpg', out);
+}
+
+function loadEnhanceImage(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    enhanceImg = new Image();
+    enhanceImg.onload = function() {
+      document.getElementById('enhance-editor').style.display = 'grid';
+      renderEnhance();
+    };
+    enhanceImg.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderEnhance() {
+  if (!enhanceImg) return;
+  const canvas = document.getElementById('enhance-canvas');
+  const ctx = canvas.getContext('2d');
+  const bright = parseInt(document.getElementById('e-bright').value);
+  const contrast = parseInt(document.getElementById('e-contrast').value);
+  const sat = parseInt(document.getElementById('e-sat').value);
+  const sharp = parseFloat(document.getElementById('e-sharp').value);
+
+  canvas.width = enhanceImg.width;
+  canvas.height = enhanceImg.height;
+
+  const c = Math.max(0, Math.min(200, 100 + contrast)) / 100;
+  const bVal = bright * 2.55;
+  ctx.filter = `brightness(${1 + bright/100}) contrast(${c}) saturate(${1 + sat/100})`;
+  ctx.drawImage(enhanceImg, 0, 0);
+  ctx.filter = 'none';
+
+  if (sharp > 0) {
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    sharpenImage(ctx, data, sharp);
+  }
+}
+
+function sharpenImage(ctx, imgData, amount) {
+  const w = imgData.width, h = imgData.height, d = imgData.data;
+  const kernel = [-1,-1,-1,-1, 8+amount,-1,-1,-1,-1];
+  const out = ctx.createImageData(w, h);
+  for (let y=1; y<h-1; y++) {
+    for (let x=1; x<w-1; x++) {
+      let r=0,g=0,b=0;
+      for (let ky=-1; ky<=1; ky++) {
+        for (let kx=-1; kx<=1; kx++) {
+          const i=((y+ky)*w+(x+kx))*4;
+          const kv=kernel[(ky+1)*3+(kx+1)];
+          r+=d[i]*kv; g+=d[i+1]*kv; b+=d[i+2]*kv;
+        }
+      }
+      const i=(y*w+x)*4;
+      out.data[i]=Math.min(255,Math.max(0,r));
+      out.data[i+1]=Math.min(255,Math.max(0,g));
+      out.data[i+2]=Math.min(255,Math.max(0,b));
+      out.data[i+3]=d[i+3];
+    }
+  }
+  ctx.putImageData(out, 0, 0);
+}
+
+function resetEnhance() {
+  ['e-bright','e-contrast','e-sat','e-sharp'].forEach(id => { document.getElementById(id).value = 0; document.getElementById(id+'-v') && (document.getElementById(id+'-v').textContent = 0); });
+  document.getElementById('e-sharp-v').textContent = 0;
+  renderEnhance();
+}
+
+function loadBgImage(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    bgImg = new Image();
+    bgImg.onload = function() {
+      document.getElementById('bg-editor').style.display = 'grid';
+      renderBg();
+    };
+    bgImg.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderBg() {
+  if (!bgImg) return;
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  const color = document.getElementById('bg-color-pick').value !== '#ffffff' ? document.getElementById('bg-color-pick').value : selectedBgColor;
+  canvas.width = bgImg.width;
+  canvas.height = bgImg.height;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bgImg, 0, 0);
+}
+
+function downloadCanvas(id, filename, canvasEl) {
+  const canvas = canvasEl || document.getElementById(id);
+  if (!canvas) return;
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = canvas.toDataURL('image/jpeg', 0.95);
+  a.click();
+}
+</script>
+</body>
+</html>
